@@ -5,10 +5,102 @@ from flask import Flask, render_template, Response, request, jsonify
 import os
 from threading import Thread
 import queue
-from pose_estimator import PoseEstimator
-from fall_detector import FallDetector
-from video import VideoProcessor,VideoStreamer
+from ultralytics import YOLO
+
 app = Flask(__name__)
+
+class PoseEstimator:
+    def __init__(self, model_path='yolov8n-pose.pt'):
+        self.model = YOLO(model_path)
+
+    def estimate_pose(self, frame):
+        return self.model(frame)
+
+class FallDetector:
+    def __init__(self, fall_threshold=45, fall_duration=2.0):
+        self.fall_threshold = fall_threshold
+        self.fall_duration = fall_duration
+        self.person_trackers = {}
+
+    def determine_pose(self, keypoints):
+        left_shoulder = keypoints[5]
+        right_shoulder = keypoints[6]
+        left_hip = keypoints[11]
+        right_hip = keypoints[12]
+        
+        shoulder_mid = np.mean([left_shoulder, right_shoulder], axis=0)
+        hip_mid = np.mean([left_hip, right_hip], axis=0)
+        
+        torso_vector = shoulder_mid - hip_mid
+        vertical_vector = np.array([0, -1])
+        
+        angle = np.arccos(np.dot(torso_vector, vertical_vector) / 
+                          (np.linalg.norm(torso_vector) * np.linalg.norm(vertical_vector)))
+        angle_degrees = np.degrees(angle)
+        
+        return "LYING" if angle_degrees >= self.fall_threshold else "STANDING"
+
+    def detect_fall(self, person_id, pose):
+        if person_id not in self.person_trackers:
+            self.person_trackers[person_id] = {'lying_start_time': None}
+
+        if pose == "LYING":
+            if self.person_trackers[person_id]['lying_start_time'] is None:
+                self.person_trackers[person_id]['lying_start_time'] = time.time()
+            elif time.time() - self.person_trackers[person_id]['lying_start_time'] >= self.fall_duration:
+                return True
+        else:
+            self.person_trackers[person_id]['lying_start_time'] = None
+
+        return False
+
+class VideoProcessor:
+    def __init__(self, pose_estimator, fall_detector):
+        self.pose_estimator = pose_estimator
+        self.fall_detector = fall_detector
+
+    def process_frame(self, frame):
+        results = self.pose_estimator.estimate_pose(frame)
+        
+        for r in results:
+            boxes = r.boxes
+            poses = r.keypoints
+
+            for i, (box, pose) in enumerate(zip(boxes, poses)):
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                keypoints = pose.xy[0].cpu().numpy()
+                
+                current_pose = self.fall_detector.determine_pose(keypoints)
+                fall_detected = self.fall_detector.detect_fall(i, current_pose)
+
+                self.draw_annotations(frame, x1, y1, x2, y2, keypoints, current_pose, fall_detected)
+
+        return frame
+
+    def draw_annotations(self, frame, x1, y1, x2, y2, keypoints, pose, fall_detected):
+        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        cv2.putText(frame, pose, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        
+        for kp in keypoints:
+            cv2.circle(frame, (int(kp[0]), int(kp[1])), 4, (0, 255, 0), -1)
+
+        if fall_detected:
+            cv2.putText(frame, "FALL DETECTED", (x1, y1 - 30), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+
+class VideoStreamer:
+    def __init__(self, frame_queue):
+        self.frame_queue = frame_queue
+
+    def get_frame(self):
+        while True:
+            if not self.frame_queue.empty():
+                frame = self.frame_queue.get()
+                _, buffer = cv2.imencode('.jpg', frame)
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+            else:
+                time.sleep(0.1)
 
 # Global variables
 current_video_path = None
