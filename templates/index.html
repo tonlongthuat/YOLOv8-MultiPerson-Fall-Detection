@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fall Detection</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>Fall Detection</h1>
+    <form id="upload-form" enctype="multipart/form-data">
+        <input type="file" name="file" accept="video/*">
+        <button type="submit">Upload and Analyze</button>
+    </form>
+    <div id="video-container" style="display: none;">
+        <h2>Video Preview with Fall Detection</h2>
+        <img src="{{ url_for('video_feed') }}" width="640">
+    </div>
+    <script>
+        $(document).ready(function() {
+            $('#upload-form').on('submit', function(e) {
+                e.preventDefault();
+                var formData = new FormData(this);
+                $.ajax({
+                    url: '/upload',
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function(response) {
+                        alert(response.message);
+                        $('#video-container').show();
+                    },
+                    error: function(xhr, status, error) {
+                        alert('Error: ' + xhr.responseJSON.error);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
