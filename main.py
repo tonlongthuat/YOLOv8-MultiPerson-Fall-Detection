@@ -1,48 +1,31 @@
-from flask import Flask, render_template, Response, request, jsonify
-import os
-import queue
-from pose_estimator import PoseEstimator
+import cv2
+import numpy as np
+import time
+from flask import Flask, render_template, Response
+from esp32cam_streamer import ESP32CamStreamer
 from fall_detector import FallDetector
-from video import VideoProcessor,VideoStreamer
-
+from pose_estimator import PoseEstimator
+from video import VideoProcessor, VideoStreamer
 
 app = Flask(__name__)
-# Global variables
-current_video_path = None
-frame_queue = queue.Queue(maxsize=10)
-processing_thread = None
-stop_processing = False
 
+# ESP32-CAM URL
+ESP32_CAM_URL = "http://192.168.1.8"  # Update this URL if needed
+
+# Initialize components
 pose_estimator = PoseEstimator()
 fall_detector = FallDetector()
-video_processor = VideoProcessor(pose_estimator, fall_detector, frame_queue)
-video_streamer = VideoStreamer(frame_queue)
+esp32_cam = ESP32CamStreamer(ESP32_CAM_URL)
+video_processor = VideoProcessor(pose_estimator, fall_detector)
+video_streamer = VideoStreamer(esp32_cam, video_processor)
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file part'}), 400
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-    if file:
-        filename = file.filename
-        file_path = os.path.join('uploads', filename)
-        file.save(file_path)
-        
-        # Start processing the new video
-        video_processor.start_processing(file_path)
-        
-        return jsonify({'message': 'File uploaded successfully'}), 200
-
 @app.route('/video_feed')
 def video_feed():
-    return Response(video_streamer.get_frame(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response(video_streamer.generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-if __name__=="__main__":
-    os.makedirs('uploads', exist_ok=True)
-    app.run(debug=True)
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=5000, threaded=True)

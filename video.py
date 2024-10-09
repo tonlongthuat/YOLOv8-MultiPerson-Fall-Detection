@@ -1,19 +1,12 @@
 import cv2
 import time
-import time
-import cv2
-import numpy as np
-from queue import Queue
-from threading import Thread
+from threading import Lock
 
 class VideoProcessor:
-    def __init__(self, pose_estimator, fall_detector, frame_queue, max_queue_size=10):
+    def __init__(self, pose_estimator, fall_detector):
         self.pose_estimator = pose_estimator
         self.fall_detector = fall_detector
-        self.frame_queue = frame_queue
-        self.max_queue_size = max_queue_size
-        self.should_stop = False
-        self.processing_thread = None
+        self.lock = Lock()
 
     def process_frame(self, frame):
         results = self.pose_estimator.estimate_pose(frame)
@@ -74,16 +67,27 @@ class VideoProcessor:
             self.processing_thread.join()
 
 class VideoStreamer:
-    def __init__(self, frame_queue):
-        self.frame_queue = frame_queue
+    def __init__(self, esp32_cam, video_processor):
+        self.esp32_cam = esp32_cam
+        self.video_processor = video_processor
 
-    def get_frame(self):
-        while True:
-            if not self.frame_queue.empty():
-                frame = self.frame_queue.get()
-                _, buffer = cv2.imencode('.jpg', frame)
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
-            else:
-                time.sleep(0.1)
-    
+    def start(self):
+        self.esp32_cam.start()
+
+    def stop(self):
+        self.esp32_cam.stop()
+
+    def generate_frames(self):
+        self.start()
+        try:
+            while True:
+                frame = self.esp32_cam.get_frame()
+                if frame is not None:
+                    processed_frame = self.video_processor.process_frame(frame)
+                    _, buffer = cv2.imencode('.jpg', processed_frame)
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+                else:
+                    time.sleep(0.01)
+        finally:
+            self.stop()
