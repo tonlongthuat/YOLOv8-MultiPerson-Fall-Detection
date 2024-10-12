@@ -1,20 +1,24 @@
 import cv2
 import time
-from threading import Lock
+import numpy as np
+from queue import Queue
+from threading import Thread
 
 class VideoProcessor:
-    def __init__(self, pose_estimator, fall_detector):
+    def __init__(self, pose_estimator, fall_detector, frame_queue):
         self.pose_estimator = pose_estimator
         self.fall_detector = fall_detector
-        self.lock = Lock()
+        self.frame_queue = frame_queue
+        self.should_stop = False
+        self.processing_thread = None
 
     def process_frame(self, frame):
         results = self.pose_estimator.estimate_pose(frame)
-        #extract the bounding boxes and keypoints from the results
+        
         for r in results:
             boxes = r.boxes
             poses = r.keypoints
-            #draw the annotations on the frame
+
             for i, (box, pose) in enumerate(zip(boxes, poses)):
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
                 keypoints = pose.xy[0].cpu().numpy()
@@ -38,17 +42,16 @@ class VideoProcessor:
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
     def process_video(self, video_path):
-
         self.should_stop = False
         cap = cv2.VideoCapture(video_path)
-        #read the frames
+        
         while cap.isOpened() and not self.should_stop:
             success, frame = cap.read()
             if not success:
                 break
-            #process the frame
+
             processed_frame = self.process_frame(frame)
-            #add the processed frame to the queue
+
             if self.frame_queue.full():
                 self.frame_queue.get()
             self.frame_queue.put(processed_frame)
@@ -59,7 +62,7 @@ class VideoProcessor:
     def start_processing(self, video_path):
         if self.processing_thread and self.processing_thread.is_alive():
             self.stop_processing()
-        self.processing_thread = Thread(target=self.process_video, args=(video_path,))
+        self.processing_thread = Thread(target=self.process_video, args=(video_path,))  # Add a comma
         self.processing_thread.start()
 
     def stop_processing(self):
@@ -68,34 +71,15 @@ class VideoProcessor:
             self.processing_thread.join()
 
 class VideoStreamer:
-    def __init__(self, esp32_cam, video_processor):
-        self.esp32_cam = esp32_cam
-        self.video_processor = video_processor
+    def __init__(self, frame_queue):
+        self.frame_queue = frame_queue
 
-    def start(self):
-        self.esp32_cam.start()
-
-    def stop(self):
-        self.esp32_cam.stop()
-
-    def generate_frames(self):
-        self.start()
-        try:
-            while True:
-                #take the frame from the ESP32-CAM and process it
-                frame = self.esp32_cam.get_frame()
-                if frame is not None:
-                    processed_frame = self.video_processor.process_frame(frame)
-                    _, buffer = cv2.imencode('.jpg', processed_frame)
-                    #yield the frame as a multipart response
-                    #b'--frame\r\n' ranh giới giữa các frame
-                    #Content-Type: jpeg là kiểu dữ liệu của frame
-                    #\r\n\r\n là kết thúc header và bắt đầu dữ liệu
-                    #buffer.tobytes() chuyển frame thành dạng bytes
-                    #\r\n kết thúc frame
-                    yield (b'--frame\r\n'
-                           b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
-                else:
-                    time.sleep(0.01)
-        finally:
-            self.stop()
+    def get_frame(self):
+        while True:
+            if not self.frame_queue.empty():
+                frame = self.frame_queue.get()
+                _, buffer = cv2.imencode('.jpg', frame)
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+            else:
+                time.sleep(0.1)
