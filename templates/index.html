@@ -16,9 +16,9 @@
             background-color: inherit;
             display: flex;
             justify-content: center;
-            gap: 20px; /* Giảm khoảng cách giữa các camera */
+            gap: 20px; 
             margin-top: 5%;
-            flex-wrap: wrap; /* Cho phép sắp xếp lại phần tử */
+            flex-wrap: wrap;
         }
         .Cam {
             width: 500px;
@@ -80,13 +80,13 @@
             margin: 20px 50px 0px 175px;
         }
 
-        /* Media Query cho màn hình nhỏ */
+      
         @media (max-width: 768px) {
             #video-container1, #video-container2 {
                 flex-direction: column; 
                 gap: 20px;
             }
-            /* Ẩn tất cả nhưng một camera */
+
             #upload-form-2, #upload-form-3, #upload-form-4 {
                 display: block; 
             }
@@ -113,7 +113,7 @@
                     <div class="dropdown-item" onclick="closeCamera(1)">Close Cam</div>
                 </div>
             </div>
-            <button class="button_cam" type="submit">Upload and Analyze</button>
+            <button class="button_cam" data-index="1" type="submit">Upload and Analyze</button>
         </form>
 
         <form id="upload-form-2" enctype="multipart/form-data">
@@ -127,10 +127,10 @@
                         Choose File 
                         <input id="file-input-2" style="display: none;" type="file" name="file" accept="video/*" onchange="previewVideo(event, 2)" required>
                     </label>
-                    <div class="dropdown-item" >Close Cam</div>
+                    <div class="dropdown-item"onclick="closeCamera(2)" >Close Cam</div>
                 </div>
             </div>
-            <button class="button_cam" type="submit">Upload and Analyze</button>
+            <button class="button_cam" data-index="2" type="submit">Upload and Analyze</button>
         </form>
     </div>
 
@@ -142,14 +142,14 @@
                 <button type="button" class="overlay-button" data-index="3" onclick="toggleDropdown(3)">&#x22EE;</button>
         
                 <div id="dropdownMenu3" class="dropdown">
-                    <label class="dropdown-item" for="file-input-2">
+                    <label class="dropdown-item" for="file-input-3">
                         Choose File 
                         <input id="file-input-3" style="display: none;" type="file" name="file" accept="video/*" onchange="previewVideo(event, 3)" required>
                     </label>
-                    <div class="dropdown-item">Close Cam</div>
+                    <div class="dropdown-item"onclick="closeCamera(3)">Close Cam</div>
                 </div>
             </div>
-            <button class="button_cam" type="submit">Upload and Analyze</button>
+            <button class="button_cam" data-index="3" type="submit">Upload and Analyze</button>
         </form>
 
         <form id="upload-form-4" enctype="multipart/form-data">
@@ -159,14 +159,14 @@
                 <button type="button" class="overlay-button" data-index="4" onclick="toggleDropdown(4)">&#x22EE;</button>
         
                 <div id="dropdownMenu4" class="dropdown">
-                    <label class="dropdown-item" for="file-input-2">
+                    <label class="dropdown-item" for="file-input-4">
                         Choose File 
                         <input id="file-input-4" style="display: none;" type="file" name="file" accept="video/*" onchange="previewVideo(event, 4)" required>
                     </label>
-                    <div class="dropdown-item">Close Cam</div>
+                    <div class="dropdown-item" onclick="closeCamera(4)">Close Cam</div>
                 </div>
             </div>
-            <button class="button_cam" type="submit">Upload and Analyze</button>
+            <button class="button_cam" data-index="4" type="submit">Upload and Analyze</button>
         </form>
     </div>
 
@@ -183,7 +183,6 @@
                 button.style.display = 'block'; 
             }
         }
-
         window.onclick = function(event) {
             const dropdowns = document.getElementsByClassName('dropdown');
             for (let i = 0; i < dropdowns.length; i++) {
@@ -202,53 +201,54 @@
         function previewVideo(event, index) {
             const file = event.target.files[0];
             if (file) {
-                const url = "{{ url_for('video_feed') }}";
-                // Thay đổi source của hình ảnh để hiển thị video được chọn
-                document.getElementById(`video-preview-${index}`).src = url; // Cập nhật src của hình ảnh
+                const url = `/video_feed/${index}`; 
+       
+                document.getElementById(`video-preview-${index}`).src = url; 
             } else {
-                // Nếu không có tệp nào được chọn, quay lại hình ảnh cũ
+ 
                 document.getElementById(`video-preview-${index}`).src = "https://th.bing.com/th?q=No+Camera+Icon+White+PNG&w=120&h=120&c=1&rs=1&qlt=90&cb=1&dpr=1.5&pid=InlineBlock&mkt=en-WW&cc=VN&setlang=en&adlt=strict&t=1&mw=247"; // Quay lại hình ảnh cũ
             }
         }
+        
+    
         $(document).ready(function() {
-    // Xử lý submit cho form tải lên video từ Camera 1
-    $('#upload-form-1').on('submit', function(e) {
-        e.preventDefault();
-        var formData = new FormData(this);
-        $.ajax({
-            url: '/upload/camera1', // Địa chỉ xử lý upload
-            type: 'POST',
-            data: formData,
-            contentType: false,
-            processData: false,
-            success: function(response) {
-                alert(response.message); // Hiển thị thông báo thành công
-            },
-            error: function(xhr) {
-                alert('Error: ' + xhr.responseJSON.error); // Hiển thị thông báo lỗi
-            }
-        });
-    });
+        
+            $('.button_cam').on('click', function(e) {
+                e.preventDefault(); 
+                var index = $(this).data('index');
+                var formData = new FormData();
+                var fileInput = document.getElementById(`file-input-${index}`); 
 
-    // Xử lý submit cho form tải lên video từ Camera 2
-    $('#upload-form-2').on('submit', function(e) {
-        e.preventDefault();
-        var formData = new FormData(this);
-        $.ajax({
-            url: '/upload/camera2', // Địa chỉ xử lý upload
-            type: 'POST',
-            data: formData,
-            contentType: false,
-            processData: false,
-            success: function(response) {
-                alert(response.message); // Hiển thị thông báo thành công
-            },
-            error: function(xhr) {
-                alert('Error: ' + xhr.responseJSON.error); // Hiển thị thông báo lỗi
-            }
+                if (fileInput.files.length > 0) {
+                    formData.append('file', fileInput.files[0]); 
+                    formData.append('camera_id', index); 
+
+                    var uploadBtn = $(this);
+                    uploadBtn.prop('disabled', true).text('Uploading...');
+
+                    $.ajax({
+                        url: '/upload', 
+                        type: 'POST',
+                        data: formData,
+                        contentType: false,
+                        processData: false,
+                        success: function(response) {
+                            alert(response.message); 
+                        },
+                        error: function(xhr) {
+                            alert('Error: ' + xhr.responseJSON.error); 
+                            console.error('Error:', xhr.responseJSON.error); 
+                        },
+                        complete: function() {
+                            uploadBtn.prop('disabled', false).text('Upload and Analyze'); 
+                        }
+                    });
+                } else {
+                    alert('Please select a file to upload.'); 
+                }
+            });
         });
-    });
-});
+
 
 
     </script>
