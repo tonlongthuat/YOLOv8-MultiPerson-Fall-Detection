@@ -41,7 +41,7 @@ class VideoProcessor:
             cv2.putText(frame, "FALL DETECTED", (x1, y1 - 30), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
-    def process_video(self, video_path):
+    def process_video(self, video_path, camera_id):
         self.should_stop = False
         cap = cv2.VideoCapture(video_path)
         
@@ -59,10 +59,10 @@ class VideoProcessor:
 
         cap.release()
 
-    def start_processing(self, video_path):
+    def start_processing(self, video_path, camera_id):
         if self.processing_thread and self.processing_thread.is_alive():
             self.stop_processing()
-        self.processing_thread = Thread(target=self.process_video, args=(video_path,))  # Add a comma
+        self.processing_thread = Thread(target=self.process_video, args=(video_path, camera_id))
         self.processing_thread.start()
 
     def stop_processing(self):
