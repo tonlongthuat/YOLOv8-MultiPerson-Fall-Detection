@@ -129,7 +129,8 @@
                         <input id="file-input-2" style="display: none;" type="file" name="file" accept="video/*" onchange="previewVideo(event, 2)" required>
                     </label>
                     <div class="dropdown-item" onclick="chooseIpCam(2)">Choose IP Cam</div>
-                    <div class="dropdown-item"onclick="closeCamera(2)" >Close Cam</div>
+                    <div class="dropdown-item" onclick="closeCamera(2)">Close Cam</div>
+
                 </div>
             </div>
             <button class="button_cam" data-index="2" type="submit">Upload and Analyze</button>
@@ -148,6 +149,7 @@
                         Choose File 
                         <input id="file-input-3" style="display: none;" type="file" name="file" accept="video/*" onchange="previewVideo(event, 3)" required>
                     </label>
+
                     <div class="dropdown-item" onclick="chooseIpCam(3)">Choose IP Cam</div>
                     <div class="dropdown-item"onclick="closeCamera(3)">Close Cam</div>
                 </div>
@@ -166,6 +168,7 @@
                         Choose File 
                         <input id="file-input-4" style="display: none;" type="file" name="file" accept="video/*" onchange="previewVideo(event, 4)" required>
                     </label>
+
                     <div class="dropdown-item" onclick="chooseIpCam(4)">Choose IP Cam</div>
                     <div class="dropdown-item" onclick="closeCamera(4)">Close Cam</div>
                 </div>
@@ -219,7 +222,6 @@
                 document.getElementById(`video-preview-${index}`).src = `http://${ip}/video_feed`;
             }
         }
-    
         $(document).ready(function() {
         
             $('.button_cam').on('click', function(e) {
