@@ -6,4 +6,4 @@ class PoseEstimator:
         self.model = YOLO(model_path)
 
     def estimate_pose(self, frame):
-        return self.model(frame, conf=0.5)
+        return self.model(frame, conf=0.4)
