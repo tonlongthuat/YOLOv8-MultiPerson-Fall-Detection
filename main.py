@@ -16,6 +16,7 @@ frame_queues = {
     3: queue.Queue(maxsize=10)
 }
 ip_addresses = {}
+file_streams = {}
 
 pose_estimator = PoseEstimator()
 fall_detector = FallDetector()
@@ -26,22 +27,17 @@ video_processors = {
     for camera_id in frame_queues
 }
 
-video_streamers = {
-    camera_id: FileVideoStreamer(frame_queues[camera_id])
-    for camera_id in frame_queues
-}
-
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @app.route('/set_ip', methods=['POST'])
 def set_ip():
-    # Lấy ip từ index.html ip có dạng {camera_id: 192.168.1.8} ví dụ: {0:192.168.1.8}
     data = request.get_json()
     camera_id = data.get('camera_id')
     ip_address = data.get('ip')
     ip_addresses[camera_id] = ip_address
+    print(f"Received IP address: {ip_address} for camera ID: {camera_id}")  # In địa chỉ IP và camera_id
     return jsonify({'message': 'IP address set successfully'}), 200
 
 @app.route('/upload', methods=['POST'])
@@ -62,6 +58,7 @@ def upload_file():
     file.save(file_path)
 
     video_processors[camera_id].start_processing(file_path, camera_id)
+    file_streams[camera_id] = file_path  # Store the file path for the camera ID
 
     return jsonify({'message': 'File uploaded successfully'}), 200
 
@@ -69,14 +66,17 @@ def upload_file():
 def video_feed(camera_id):
     if camera_id in ip_addresses:
         ip_address = ip_addresses[camera_id]
-        esp32_cam = ESP32CamStreamer(ip_address)
+        print(f"Streaming from IP address: {ip_address} for camera ID: {camera_id}")  # In địa chỉ IP và camera_id
+        esp32_cam = ESP32CamStreamer(f"http://{ip_address}/")
         video_processor = video_processors[camera_id]
         streamer = VideoStreamer(esp32_cam, video_processor)
         return Response(streamer.generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
-    elif camera_id in frame_queues:
+    elif camera_id in file_streams:
+        print(f"Streaming from file for camera ID: {camera_id}")  # Kiểm tra xem có vào nhánh này không
         streamer = video_streamers[camera_id]
         return Response(streamer.get_frame(), mimetype='multipart/x-mixed-replace; boundary=frame')
     else:
+        print(f"Camera ID {camera_id} not found")  # Kiểm tra xem camera_id có tồn tại không
         return jsonify({'error': 'Camera ID not found'}), 404
 
 if __name__ == "__main__":

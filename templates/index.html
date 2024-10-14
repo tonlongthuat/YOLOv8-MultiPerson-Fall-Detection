@@ -326,7 +326,7 @@
             error: function (xhr) {
               alert("Error: " + xhr.responseJSON.error);
               console.error("Error:", xhr.responseJSON.error);
-            }
+            },
           });
         } else {
           document.getElementById(`video-preview-${index}`).src =
@@ -336,26 +336,24 @@
       function chooseIpCam(index) {
         const ip = prompt("Please enter the IP address of the camera:");
         if (ip) {
-          console.log(`Camera ${index} IP Address: ${ip}`); // Xuất địa chỉ IP ra console
-          document.getElementById(
-            `video-preview-${index}`
-          ).src = `http://${ip}/video_feed/${index}`;
-          fetch("/set_ip", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ camera_id: index, ip: ip }),
-          })
+            console.log(`Camera ${index} IP Address: ${ip}`); // Xuất địa chỉ IP ra console
+            document.getElementById(`video-preview-${index}`).src = `/video_feed/${index}`;
+            fetch("/set_ip", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ camera_id: index, ip: ip }),
+            })
             .then((response) => response.json())
             .then((data) => {
-              alert(data.message);
+                alert(data.message);
             })
             .catch((error) => {
-              console.error("Error:", error);
+                console.error("Error:", error);
             });
         }
-      }
+    }
     </script>
   </body>
 </html>
