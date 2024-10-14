@@ -2,8 +2,14 @@
 #include <WiFi.h>
 #include "esp_http_server.h"
 
-const char* ssid = "your_ssid";
-const char* password = "your_password";
+const char* ssid = "mynetwork";
+const char* password = "mypassword";
+
+// Static IP address configuration
+IPAddress staticIP(192, 168, 1, 8);
+IPAddress gateway(192, 168, 1, 1);
+IPAddress subnet(255, 255, 255, 0);
+IPAddress dns(8, 8, 8, 8); // Google DNS
 
 #define CAMERA_MODEL_AI_THINKER
 #include "camera_pins.h"
@@ -76,6 +82,11 @@ void setup() {
   if (err != ESP_OK) {
     Serial.printf("Camera init failed with error 0x%x", err);
     return;
+  }
+
+  // Configure static IP
+  if (!WiFi.config(staticIP, gateway, subnet, dns)) {
+    Serial.println("Failed to configure static IP");
   }
 
   // Connect to WiFi
