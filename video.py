@@ -71,6 +71,32 @@ class VideoProcessor:
             self.processing_thread.join()
 
 class VideoStreamer:
+    def __init__(self, esp32_cam, video_processor):
+        self.esp32_cam = esp32_cam
+        self.video_processor = video_processor
+
+    def start(self):
+        self.esp32_cam.start()
+
+    def stop(self):
+        self.esp32_cam.stop()
+
+    def generate_frames(self):
+        self.start()
+        try:
+            while True:
+                frame = self.esp32_cam.get_frame()
+                if frame is not None:
+                    processed_frame = self.video_processor.process_frame(frame)
+                    _, buffer = cv2.imencode('.jpg', processed_frame)
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+                else:
+                    time.sleep(0.01)
+        finally:
+            self.stop()
+            
+class FileVideoStreamer:
     def __init__(self, frame_queue):
         self.frame_queue = frame_queue
 

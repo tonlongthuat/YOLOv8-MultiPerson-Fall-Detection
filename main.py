@@ -1,9 +1,10 @@
 from flask import Flask, render_template, Response, request, jsonify
 import os
 import queue
+from esp32cam_streamer import ESP32CamStreamer
 from pose_estimator import PoseEstimator
 from fall_detector import FallDetector
-from video import VideoProcessor, VideoStreamer
+from video import VideoProcessor, VideoStreamer, FileVideoStreamer
 
 app = Flask(__name__, template_folder='templates')
 
@@ -14,6 +15,7 @@ frame_queues = {
     2: queue.Queue(maxsize=10),
     3: queue.Queue(maxsize=10)
 }
+ip_addresses = {}
 
 pose_estimator = PoseEstimator()
 fall_detector = FallDetector()
@@ -25,13 +27,22 @@ video_processors = {
 }
 
 video_streamers = {
-    camera_id: VideoStreamer(frame_queues[camera_id])
+    camera_id: FileVideoStreamer(frame_queues[camera_id])
     for camera_id in frame_queues
 }
 
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/set_ip', methods=['POST'])
+def set_ip():
+    # Lấy ip từ index.html ip có dạng {camera_id: 192.168.1.8} ví dụ: {0:192.168.1.8}
+    data = request.get_json()
+    camera_id = data.get('camera_id')
+    ip_address = data.get('ip')
+    ip_addresses[camera_id] = ip_address
+    return jsonify({'message': 'IP address set successfully'}), 200
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -50,16 +61,23 @@ def upload_file():
     file_path = os.path.join('uploads', filename)
     file.save(file_path)
 
-  
     video_processors[camera_id].start_processing(file_path, camera_id)
 
     return jsonify({'message': 'File uploaded successfully'}), 200
 
 @app.route('/video_feed/<int:camera_id>')
 def video_feed(camera_id):
-    if camera_id not in frame_queues:
-        return "Camera ID not found", 404
-    return Response(video_streamers[camera_id].get_frame(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    if camera_id in ip_addresses:
+        ip_address = ip_addresses[camera_id]
+        esp32_cam = ESP32CamStreamer(ip_address)
+        video_processor = video_processors[camera_id]
+        streamer = VideoStreamer(esp32_cam, video_processor)
+        return Response(streamer.generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    elif camera_id in frame_queues:
+        streamer = video_streamers[camera_id]
+        return Response(streamer.get_frame(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    else:
+        return jsonify({'error': 'Camera ID not found'}), 404
 
 if __name__ == "__main__":
     os.makedirs('uploads', exist_ok=True)
