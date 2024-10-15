@@ -129,8 +129,7 @@
                         <input id="file-input-2" style="display: none;" type="file" name="file" accept="video/*" onchange="previewVideo(event, 2)" required>
                     </label>
                     <div class="dropdown-item" onclick="chooseIpCam(2)">Choose IP Cam</div>
-                    <div class="dropdown-item" onclick="closeCamera(2)">Close Cam</div>
-
+                    <div class="dropdown-item"onclick="closeCamera(2)" >Close Cam</div>
                 </div>
             </div>
             <button class="button_cam" data-index="2" type="submit">Upload and Analyze</button>
@@ -149,7 +148,6 @@
                         Choose File 
                         <input id="file-input-3" style="display: none;" type="file" name="file" accept="video/*" onchange="previewVideo(event, 3)" required>
                     </label>
-
                     <div class="dropdown-item" onclick="chooseIpCam(3)">Choose IP Cam</div>
                     <div class="dropdown-item"onclick="closeCamera(3)">Close Cam</div>
                 </div>
@@ -168,7 +166,6 @@
                         Choose File 
                         <input id="file-input-4" style="display: none;" type="file" name="file" accept="video/*" onchange="previewVideo(event, 4)" required>
                     </label>
-
                     <div class="dropdown-item" onclick="chooseIpCam(4)">Choose IP Cam</div>
                     <div class="dropdown-item" onclick="closeCamera(4)">Close Cam</div>
                 </div>
@@ -217,11 +214,28 @@
             }
         }
         function chooseIpCam(index) {
-            const ip = prompt("Please enter the IP address of the camera:");
+            const ip = prompt("Please enter the IP address of the ESP32-CAM:");
             if (ip) {
-                document.getElementById(`video-preview-${index}`).src = `http://${ip}/video_feed`;
+                // Send IP to the server to process
+                $.ajax({
+                    url: `/set_ip/${index}`, 
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ ip: ip }),
+                    success: function(response) {
+                        alert(response.message); 
+                        // Update video source for the camera
+                        document.getElementById(`video-preview-${index}`).src = `/video_feed/${index}`;
+                    },
+                    error: function(xhr) {
+                        alert('Error: ' + xhr.responseJSON.error); 
+                        console.error('Error:', xhr.responseJSON.error); 
+                    }
+                });
             }
         }
+
+    
         $(document).ready(function() {
         
             $('.button_cam').on('click', function(e) {
