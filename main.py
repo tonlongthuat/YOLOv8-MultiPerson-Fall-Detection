@@ -4,7 +4,7 @@ import queue
 from pose_estimator import PoseEstimator
 from fall_detector import FallDetector
 from video import VideoProcessor, VideoStreamer
-
+import cv2
 app = Flask(__name__, template_folder='templates')
 
 # Global variables
@@ -28,7 +28,7 @@ video_streamers = {
     camera_id: VideoStreamer(frame_queues[camera_id])
     for camera_id in frame_queues
 }
-
+camera_ips = {}
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -54,13 +54,27 @@ def upload_file():
     video_processors[camera_id].start_processing(file_path, camera_id)
 
     return jsonify({'message': 'File uploaded successfully'}), 200
+@app.route('/set_ip/<int:camera_id>', methods=['POST'])
+def set_ip(camera_id):
+    if camera_id not in frame_queues:
+        return jsonify({'error': 'Invalid camera ID'}), 400
 
+    data = request.get_json()
+    ip = data.get('ip')
+    
+    if not ip:
+        return jsonify({'error': 'No IP provided'}), 400
+   
+    camera_ips[camera_id] = ip
+
+    video_processors[camera_id].start_processing(f'http://{ip}/video', camera_id)
+
+    return jsonify({'message': 'ESP32-CAM IP set successfully'}), 200
 @app.route('/video_feed/<int:camera_id>')
 def video_feed(camera_id):
     if camera_id not in frame_queues:
         return "Camera ID not found", 404
     return Response(video_streamers[camera_id].get_frame(), mimetype='multipart/x-mixed-replace; boundary=frame')
-
 if __name__ == "__main__":
     os.makedirs('uploads', exist_ok=True)
     app.run(debug=True)
