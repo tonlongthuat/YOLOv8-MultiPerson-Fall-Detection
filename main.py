@@ -13,7 +13,8 @@ frame_queues = {
     0: queue.Queue(maxsize=10),
     1: queue.Queue(maxsize=10),
     2: queue.Queue(maxsize=10),
-    3: queue.Queue(maxsize=10)
+    3: queue.Queue(maxsize=10),
+    4: queue.Queue(maxsize=10) 
 }
 ip_addresses = {}
 file_streams = {}
@@ -26,7 +27,10 @@ video_processors = {
     camera_id: VideoProcessor(pose_estimator, fall_detector, frame_queues[camera_id])
     for camera_id in frame_queues
 }
-
+video_streamers_file = {
+    camera_id: FileVideoStreamer(frame_queues[camera_id])
+    for camera_id in frame_queues
+}
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -73,7 +77,7 @@ def video_feed(camera_id):
         return Response(streamer.generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
     elif camera_id in file_streams:
         print(f"Streaming from file for camera ID: {camera_id}")  # Kiểm tra xem có vào nhánh này không
-        streamer = video_streamers[camera_id]
+        streamer = video_streamers_file[camera_id]
         return Response(streamer.get_frame(), mimetype='multipart/x-mixed-replace; boundary=frame')
     else:
         print(f"Camera ID {camera_id} not found")  # Kiểm tra xem camera_id có tồn tại không

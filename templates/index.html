@@ -154,7 +154,7 @@
             id="video-preview-2"
             class="Cam"
             src="https://th.bing.com/th?q=No+Camera+Icon+White+PNG&w=120&h=120&c=1&rs=1&qlt=90&cb=1&dpr=1.5&pid=InlineBlock&mkt=en-WW&cc=VN&setlang=en&adlt=strict&t=1&mw=247"
-            alt="Camera 1"
+            alt="Camera 2"
           />
           <button
             type="button"
@@ -195,7 +195,7 @@
             id="video-preview-3"
             class="Cam"
             src="https://th.bing.com/th?q=No+Camera+Icon+White+PNG&w=120&h=120&c=1&rs=1&qlt=90&cb=1&dpr=1.5&pid=InlineBlock&mkt=en-WW&cc=VN&setlang=en&adlt=strict&t=1&mw=247"
-            alt="Camera 1"
+            alt="Camera 3"
           />
           <button
             type="button"
@@ -235,7 +235,7 @@
             id="video-preview-4"
             class="Cam"
             src="https://th.bing.com/th?q=No+Camera+Icon+White+PNG&w=120&h=120&c=1&rs=1&qlt=90&cb=1&dpr=1.5&pid=InlineBlock&mkt=en-WW&cc=VN&setlang=en&adlt=strict&t=1&mw=247"
-            alt="Camera 1"
+            alt="Camera 4"
           />
           <button
             type="button"
@@ -304,35 +304,48 @@
       }
       function previewVideo(event, index) {
         const file = event.target.files[0];
+        const fileInput = document.getElementById(`file-input-${index}`);
+        
         if (file) {
-          const url = `/video_feed/${index}`;
+            // Vô hiệu hóa file input để ngăn người dùng chọn file mới
+            fileInput.disabled = true; 
 
-          document.getElementById(`video-preview-${index}`).src = url;
+            const url = `/video_feed/${index}`;
 
-          // Tự động gửi tệp sau khi chọn
-          var formData = new FormData();
-          formData.append("file", file);
-          formData.append("camera_id", index);
+            const formData = new FormData();
+            formData.append('file', file); 
+            formData.append('camera_id', index); 
 
-          $.ajax({
-            url: "/upload",
-            type: "POST",
-            data: formData,
-            contentType: false,
-            processData: false,
-            success: function (response) {
-              alert(response.message);
-            },
-            error: function (xhr) {
-              alert("Error: " + xhr.responseJSON.error);
-              console.error("Error:", xhr.responseJSON.error);
-            },
-          });
+            $.ajax({
+                url: '/upload', 
+                type: 'POST',
+                data: formData,
+                contentType: false,
+                processData: false,
+                success: function(response) {
+                    alert(response.message); 
+                    // Reset file input sau khi upload thành công
+                     
+                    document.getElementById(`video-preview-${index}`).src = url; 
+                    document.getElementById(`video-preview-${index}`).load(); 
+                    fileInput.value = ""; 
+                    fileInput.disabled = false; // Bật lại file input
+
+                },
+                error: function(xhr) {
+                    alert('Error: ' + xhr.responseJSON.error); 
+                    console.error('Error:', xhr.responseJSON.error); 
+                    fileInput.disabled = false; // Bật lại file input ngay cả khi có lỗi
+                }
+            });
         } else {
-          document.getElementById(`video-preview-${index}`).src =
-            "https://th.bing.com/th?q=No+Camera+Icon+White+PNG&w=120&h=120&c=1&rs=1&qlt=90&cb=1&dpr=1.5&pid=InlineBlock&mkt=en-WW&cc=VN&setlang=en&adlt=strict&t=1&mw=247"; // Quay lại hình ảnh cũ
+            document.getElementById(`video-preview-${index}`).src = "https://th.bing.com/th?q=No+Camera+Icon+White+PNG&w=120&h=120&c=1&rs=1&qlt=90&cb=1&dpr=1.5&pid=InlineBlock&mkt=en-WW&cc=VN&setlang=en&adlt=strict&t=1&mw=247";
         }
-      }
+    }
+
+
+
+
       function chooseIpCam(index) {
         const ip = prompt("Please enter the IP address of the camera:");
         if (ip) {
