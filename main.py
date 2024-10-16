@@ -2,15 +2,12 @@ from flask import Flask, render_template, Response, request, jsonify
 import os
 import queue
 from esp32cam_streamer import ESP32CamStreamer
-from pose_estimator import PoseEstimator
-from fall_detector import FallDetector
 from video import VideoProcessor, VideoStreamer, FileVideoStreamer
 
 app = Flask(__name__, template_folder='templates')
 
 # Global variables
 frame_queues = {
-    0: queue.Queue(maxsize=10),
     1: queue.Queue(maxsize=10),
     2: queue.Queue(maxsize=10),
     3: queue.Queue(maxsize=10),
@@ -18,13 +15,11 @@ frame_queues = {
 }
 ip_addresses = {}
 file_streams = {}
-
-pose_estimator = PoseEstimator()
-fall_detector = FallDetector()
+model_path = "ok.pt"
 
 # Initialize VideoProcessors for each camera
 video_processors = {
-    camera_id: VideoProcessor(pose_estimator, fall_detector, frame_queues[camera_id])
+    camera_id: VideoProcessor(model_path, frame_queues[camera_id])
     for camera_id in frame_queues
 }
 video_streamers_file = {

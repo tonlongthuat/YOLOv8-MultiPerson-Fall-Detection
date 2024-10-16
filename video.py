@@ -1,45 +1,62 @@
 import cv2
 import time
-import numpy as np
-from queue import Queue
 from threading import Thread
+from ultralytics import YOLO
 
 class VideoProcessor:
-    def __init__(self, pose_estimator, fall_detector, frame_queue):
-        self.pose_estimator = pose_estimator
-        self.fall_detector = fall_detector
+    def __init__(self, model_path, frame_queue, confidence_threshold=0.5):
+        self.model = YOLO(model_path)
         self.frame_queue = frame_queue
+        self.confidence_threshold = confidence_threshold
         self.should_stop = False
         self.processing_thread = None
+        self.total_fall_time = 0
+        self.fall_detected_duration = 2  # seconds
+        self.monitoring_duration = 10  # seconds
+        self.start_time = time.time()
+        self.last_detection_time = None
 
     def process_frame(self, frame):
-        results = self.pose_estimator.estimate_pose(frame)
-        
-        for r in results:
-            boxes = r.boxes
-            poses = r.keypoints
+        results = self.model(frame)
+        falling_detected = False
 
-            for i, (box, pose) in enumerate(zip(boxes, poses)):
-                x1, y1, x2, y2 = map(int, box.xyxy[0])
-                keypoints = pose.xy[0].cpu().numpy()
-                
-                current_pose = self.fall_detector.determine_pose(keypoints)
-                fall_detected = self.fall_detector.detect_fall(i, current_pose)
+        for result in results:
+            for box in result.boxes:
+                if box.conf < self.confidence_threshold:
+                    continue  # Skip detections with low confidence
 
-                self.draw_annotations(frame, x1, y1, x2, y2, keypoints, current_pose, fall_detected)
+                class_id = box.cls
+                class_name = self.model.names[int(class_id)]
+                x1, y1, x2, y2 = map(int, box.xyxy[0])  # Get bounding box coordinates
+
+                # Draw bounding box
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                # Put class label text
+                cv2.putText(frame, class_name, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+
+                if class_name == 'fall':
+                    falling_detected = True
+                    if self.last_detection_time is None:
+                        self.last_detection_time = time.time()
+                    else:
+                        self.total_fall_time += time.time() - self.last_detection_time
+                        self.last_detection_time = time.time()
+                    break
+
+        if not falling_detected:
+            self.last_detection_time = None
+
+        # Check if total fall time exceeds the threshold within the monitoring duration
+        if self.total_fall_time >= self.fall_detected_duration:
+            cv2.putText(frame, "FALL DETECTED", (50, 50), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+
+        # Reset total fall time and start time if monitoring duration has passed
+        if time.time() - self.start_time >= self.monitoring_duration:
+            self.total_fall_time = 0
+            self.start_time = time.time()
 
         return frame
-
-    def draw_annotations(self, frame, x1, y1, x2, y2, keypoints, pose, fall_detected):
-        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-        cv2.putText(frame, pose, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-        
-        for kp in keypoints:
-            cv2.circle(frame, (int(kp[0]), int(kp[1])), 4, (0, 255, 0), -1)
-
-        if fall_detected:
-            cv2.putText(frame, "FALL DETECTED", (x1, y1 - 30), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
     def process_video(self, video_path, camera_id):
         self.should_stop = False
