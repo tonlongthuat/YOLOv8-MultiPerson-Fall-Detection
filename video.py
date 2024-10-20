@@ -72,7 +72,7 @@ class VideoProcessor:
             if self.frame_queue.full():
                 self.frame_queue.get()
             self.frame_queue.put(processed_frame)
-            time.sleep(0.03)
+            time.sleep(0.01)
 
         cap.release()
 
@@ -125,4 +125,4 @@ class FileVideoStreamer:
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
             else:
-                time.sleep(0.1)
+                time.sleep(0.01)
