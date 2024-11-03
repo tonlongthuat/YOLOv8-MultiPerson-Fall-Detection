@@ -35,7 +35,7 @@ To use the projects, follow these steps:
    First, clone the repository to your local machine:
 
    ```bash
-   git clone https://github.com/tonlongthuat/YOLOv8-MultiPerson-Fall-Detection.git
+   git clone https://github.com/tonlongthuat/Real-Time-Fall-Detection.git
 
 2. **Install dependencies:**
    
