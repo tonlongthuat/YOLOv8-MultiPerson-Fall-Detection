@@ -44,7 +44,7 @@ To use the projects, follow these steps:
    ```bash
     pip install -r requirements.txt
 
-3. **Configure ESP32:**
+3. **Configure ESP32 (In case you don't want to use the ESP32, just use upload file feature):**
 
    - **Module Requirements**: Ensure you are using the ESP32 AI Thinker module for compatibility.
 
